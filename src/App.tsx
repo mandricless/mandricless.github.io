@@ -414,8 +414,189 @@ function ChoiceButton({
   children: React.ReactNode;
 }) {
   return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`group cursor-pointer rounded-[24px] border px-4 py-3 text-left transition-all duration-300 active:scale-[0.99] ${
+        active
+          ? "border-white/55 bg-white/28 text-slate-950 shadow-[0_12px_34px_rgba(255,255,255,0.20)] ring-2 ring-white/35 backdrop-blur-2xl"
+          : "border-white/30 bg-white/12 text-slate-900 backdrop-blur-xl hover:-translate-y-0.5 hover:bg-white/18 hover:border-white/45"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function InfoPill({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="rounded-[22px] border border-white/30 bg-white/14 px-4 py-4 backdrop-blur-xl shadow-[0_8px_24px_rgba(255,255,255,0.08)]">
+      <div className="text-sm font-semibold text-slate-950">{title}</div>
+      <div className="mt-1 text-xs text-slate-800/80">{text}</div>
+    </div>
+  );
+}
+
+function CollapsibleBlock({
+  title,
+  description,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  description?: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className="rounded-[24px] border border-white/30 bg-white/14 backdrop-blur-xl shadow-[0_12px_30px_rgba(255,255,255,0.08)]">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left"
+      >
+        <div>
+          <div className="text-sm font-semibold text-slate-950">{title}</div>
+          {description ? <div className="mt-1 text-xs text-slate-800/75">{description}</div> : null}
+        </div>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-slate-700 transition-transform ${open ? "rotate-180" : "rotate-0"}`} />
+      </button>
+      {open ? <div className="border-t border-white/25 px-4 py-4">{children}</div> : null}
+    </div>
+  );
+}
+
+export default function MiniPcSelectorSite() {
+  const [selectedTasks, setSelectedTasks] = useState<TaskKey[]>(["study", "media"]);
+  const [sizePreference, setSizePreference] = useState<SizePreference>("small");
+  const [upgradeLevel, setUpgradeLevel] = useState<UpgradeLevel>("medium");
+  const [noiseLevel, setNoiseLevel] = useState<NoiseLevel>("balanced");
+  const [budget, setBudget] = useState<Budget>("mid");
+  const [formatPreference, setFormatPreference] = useState<FormatPreference>("any");
+  const [alwaysOn, setAlwaysOn] = useState(false);
+  const [portable, setPortable] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
+
+  const resetAll = () => {
+    setSelectedTasks(["study", "media"]);
+    setSizePreference("small");
+    setUpgradeLevel("medium");
+    setNoiseLevel("balanced");
+    setBudget("mid");
+    setFormatPreference("any");
+    setAlwaysOn(false);
+    setPortable(false);
+  };
+
+  const applyPreset = (preset: Preset) => {
+    setSelectedTasks(preset.tasks);
+    setSizePreference(preset.size);
+    setUpgradeLevel(preset.upgrade);
+    setNoiseLevel(preset.noise);
+    setBudget(preset.budget);
+    setFormatPreference(preset.format);
+    setAlwaysOn(preset.alwaysOn);
+    setPortable(preset.portable);
+  };
+
+  const toggleTask = (task: TaskKey) => {
+    setSelectedTasks((prev) =>
+      prev.includes(task) ? prev.filter((item) => item !== task) : [...prev, task]
+    );
+  };
+
+  const results = useMemo(() => {
+    const score: Record<SolutionId, number> = {
+      readyMini: 0,
+      miniITX: 0,
+      singleBoard: 0,
+      fanless: 0,
+      microDesktop: 0,
+    };
+
+    if (selectedTasks.length === 0) addScore(score, { readyMini: 2, microDesktop: 1 });
+
+    for (const task of selectedTasks) {
+      if (task === "study") addScore(score, { readyMini: 4, fanless: 3, microDesktop: 3, miniITX: 1, singleBoard: 1 });
+      if (task === "programming") addScore(score, { miniITX: 4, readyMini: 3, microDesktop: 2, fanless: 1, singleBoard: 1 });
+      if (task === "media") addScore(score, { readyMini: 4, fanless: 4, microDesktop: 3, singleBoard: 2, miniITX: 1 });
+      if (task === "gaming") addScore(score, { miniITX: 7, readyMini: 2, microDesktop: 1 });
+      if (task === "graphicsAi") addScore(score, { miniITX: 8, readyMini: 2 });
+      if (task === "server") addScore(score, { singleBoard: 6, fanless: 5, readyMini: 2, microDesktop: 2, miniITX: 1 });
+    }
+
+    if (sizePreference === "tiny") addScore(score, { singleBoard: 4, microDesktop: 4, fanless: 3, readyMini: 2, miniITX: -1 });
+    if (sizePreference === "small") addScore(score, { readyMini: 3, fanless: 3, microDesktop: 2, singleBoard: 2, miniITX: 1 });
+    if (sizePreference === "bigger") addScore(score, { miniITX: 4, readyMini: 1 });
+
+    if (upgradeLevel === "high") addScore(score, { miniITX: 6, microDesktop: 1, readyMini: 1 });
+    if (upgradeLevel === "medium") addScore(score, { readyMini: 3, miniITX: 3, microDesktop: 2 });
+    if (upgradeLevel === "low") addScore(score, { fanless: 2, singleBoard: 2, readyMini: 1, microDesktop: 1 });
+
+    if (noiseLevel === "silent") addScore(score, { fanless: 6, singleBoard: 3, readyMini: 2, microDesktop: 1, miniITX: -1 });
+    if (noiseLevel === "balanced") addScore(score, { readyMini: 2, fanless: 2, miniITX: 2, microDesktop: 1 });
+    if (noiseLevel === "any") addScore(score, { miniITX: 2, readyMini: 1 });
+
+    if (budget === "low") addScore(score, { microDesktop: 5, singleBoard: 4, readyMini: 1, fanless: 1 });
+    if (budget === "mid") addScore(score, { readyMini: 4, miniITX: 2, fanless: 2, microDesktop: 2 });
+    if (budget === "high") addScore(score, { miniITX: 5, readyMini: 2, fanless: 1 });
+
+    if (formatPreference === "ready") addScore(score, { readyMini: 5, fanless: 3, microDesktop: 2 });
+    if (formatPreference === "build") addScore(score, { miniITX: 6 });
+    if (formatPreference === "experiment") addScore(score, { singleBoard: 7 });
+
+    if (alwaysOn) addScore(score, { fanless: 5, singleBoard: 4, readyMini: 2, microDesktop: 1 });
+    if (portable) addScore(score, { readyMini: 3, microDesktop: 3, singleBoard: 2, fanless: 1 });
+
+    const level = getLevel(selectedTasks);
+
+    const ranked = (Object.keys(score) as SolutionId[])
+      .map((id) => ({ id, score: score[id], ...solutions[id] }))
+      .sort((a, b) => b.score - a.score);
+
+    const top = ranked[0];
+    const alt = ranked[1];
+
+    const reasons: string[] = [];
+    if (selectedTasks.includes("gaming") || selectedTasks.includes("graphicsAi")) {
+      reasons.push("Вы выбрали тяжёлые задачи, поэтому выше поднимаются более мощные варианты.");
+    }
+    if (selectedTasks.includes("server") || alwaysOn) {
+      reasons.push("Так как компьютер должен работать долго или постоянно, выше оцениваются экономичные и стабильные решения.");
+    }
+    if (noiseLevel === "silent") {
+      reasons.push("Для вас важна тишина, поэтому шумные варианты получают меньше баллов.");
+    }
+    if (upgradeLevel === "high") {
+      reasons.push("Вы указали, что хотите менять детали в будущем, поэтому выше оцениваются варианты с апгрейдом.");
+    }
+    if (budget === "low") {
+      reasons.push("Так как бюджет ограничен, сайт делает больший упор на более доступные решения.");
+    }
+    if (sizePreference === "tiny") {
+      reasons.push("Для вас важен очень маленький размер, поэтому более крупные решения отходят на второй план.");
+    }
+
+    const confidence = getConfidence(top.score, alt.score);
+    const alternatives = getOtherVariantNotes(ranked, top.id, noiseLevel, budget, upgradeLevel, sizePreference, selectedTasks);
+
+    return {
+      level,
+      ranked,
+      top,
+      alt,
+      reasons,
+      confidence,
+      alternatives,
+      spec: getSpec(top.id, level, budget),
+    };
+  }, [selectedTasks, sizePreference, upgradeLevel, noiseLevel, budget, formatPreference, alwaysOn, portable]);
+
+  return (
     <div className="relative min-h-screen overflow-hidden bg-[linear-gradient(180deg,#dce8ff_0%,#cfdbff_20%,#c4d6fb_52%,#ecf3ff_100%)] text-slate-900">
-      <div className="pointer-events-none absolute inset-0">
+      <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -left-16 top-8 h-72 w-72 rounded-full bg-cyan-300/30 blur-3xl" />
         <div className="absolute right-0 top-10 h-80 w-80 rounded-full bg-violet-300/25 blur-3xl" />
         <div className="absolute bottom-0 left-1/4 h-80 w-80 rounded-full bg-sky-200/25 blur-3xl" />
@@ -538,290 +719,300 @@ function ChoiceButton({
           </Card>
         </div>
 
-        <div className="space-y-6">
-          <Card className={glassCard}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-950">
-                <Target className="h-4 w-4" />
-                Шаг 1. Для чего вам нужен компьютер?
-              </CardTitle>
-              <CardDescription className="text-slate-900/75">Можно выбрать несколько пунктов. Чем точнее выбор, тем полезнее итог.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {taskOptions.map((task) => {
-                  const Icon = task.icon;
-                  const active = selectedTasks.includes(task.id);
-                  return (
-                    <ChoiceButton key={task.id} active={active} onClick={() => toggleTask(task.id)}>
-                      <div className="flex items-start gap-3">
-                        <div className={`rounded-[18px] p-2 ${active ? "bg-white/24" : "bg-white/16"}`}>
-                          <Icon className="h-5 w-5" />
+        <div className="grid gap-6 lg:grid-cols-[1.08fr_0.92fr]">
+          <div className="space-y-6">
+            <Card className={glassCard}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-slate-950">
+                  <Target className="h-4 w-4" />
+                  Шаг 1. Для чего вам нужен компьютер?
+                </CardTitle>
+                <CardDescription className="text-slate-900/75">Можно выбрать несколько пунктов. Чем точнее выбор, тем полезнее итог.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {taskOptions.map((task) => {
+                    const Icon = task.icon;
+                    const active = selectedTasks.includes(task.id);
+                    return (
+                      <ChoiceButton key={task.id} active={active} onClick={() => toggleTask(task.id)}>
+                        <div className="flex items-start gap-3">
+                          <div className={`rounded-[18px] p-2 ${active ? "bg-white/24" : "bg-white/16"}`}>
+                            <Icon className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <div className="font-semibold">{task.label}</div>
+                            <div className={`mt-1 text-sm leading-6 ${active ? "text-slate-900/80" : "text-slate-900/70"}`}>{task.hint}</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-semibold">{task.label}</div>
-                          <div className={`mt-1 text-sm leading-6 ${active ? "text-slate-900/80" : "text-slate-900/70"}`}>{task.hint}</div>
-                        </div>
-                      </div>
+                      </ChoiceButton>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className={glassCard}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-slate-950">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Шаг 2. Что для вас важно?
+                </CardTitle>
+                <CardDescription className="text-slate-900/75">Сейчас сайт уточнит ваши приоритеты: размер, шум, цена и удобство.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-950">
+                    <Box className="h-4 w-4" /> Размер
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <ChoiceButton active={sizePreference === "tiny"} onClick={() => setSizePreference("tiny")}>
+                      <div className="font-semibold">Максимально маленький</div>
+                      <div className="mt-1 text-sm text-slate-900/70">чем меньше, тем лучше</div>
                     </ChoiceButton>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={glassCard}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-950">
-                <SlidersHorizontal className="h-4 w-4" />
-                Шаг 2. Что для вас важно?
-              </CardTitle>
-              <CardDescription className="text-slate-900/75">Сейчас сайт уточнит ваши приоритеты: размер, шум, цена и удобство.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-950">
-                  <Box className="h-4 w-4" /> Размер
-                </div>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <ChoiceButton active={sizePreference === "tiny"} onClick={() => setSizePreference("tiny")}>
-                    <div className="font-semibold">Максимально маленький</div>
-                    <div className="mt-1 text-sm text-slate-900/70">чем меньше, тем лучше</div>
-                  </ChoiceButton>
-                  <ChoiceButton active={sizePreference === "small"} onClick={() => setSizePreference("small")}>
-                    <div className="font-semibold">Просто компактный</div>
-                    <div className="mt-1 text-sm text-slate-900/70">маленький, но без крайностей</div>
-                  </ChoiceButton>
-                  <ChoiceButton active={sizePreference === "bigger"} onClick={() => setSizePreference("bigger")}>
-                    <div className="font-semibold">Размер не главный</div>
-                    <div className="mt-1 text-sm text-slate-900/70">важнее мощность и удобство</div>
-                  </ChoiceButton>
-                </div>
-              </div>
-
-              <div>
-                <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-950">
-                  <Wrench className="h-4 w-4" /> Апгрейд
-                </div>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <ChoiceButton active={upgradeLevel === "low"} onClick={() => setUpgradeLevel("low")}>
-                    <div className="font-semibold">Не важен</div>
-                  </ChoiceButton>
-                  <ChoiceButton active={upgradeLevel === "medium"} onClick={() => setUpgradeLevel("medium")}>
-                    <div className="font-semibold">Желателен</div>
-                  </ChoiceButton>
-                  <ChoiceButton active={upgradeLevel === "high"} onClick={() => setUpgradeLevel("high")}>
-                    <div className="font-semibold">Очень важна</div>
-                  </ChoiceButton>
-                </div>
-              </div>
-
-              <div>
-                <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-950">
-                  <VolumeX className="h-4 w-4" /> Шум
-                </div>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <ChoiceButton active={noiseLevel === "silent"} onClick={() => setNoiseLevel("silent")}>
-                    <div className="font-semibold">Максимально тихий</div>
-                  </ChoiceButton>
-                  <ChoiceButton active={noiseLevel === "balanced"} onClick={() => setNoiseLevel("balanced")}>
-                    <div className="font-semibold">Средне</div>
-                  </ChoiceButton>
-                  <ChoiceButton active={noiseLevel === "any"} onClick={() => setNoiseLevel("any")}>
-                    <div className="font-semibold">Не важно</div>
-                  </ChoiceButton>
-                </div>
-              </div>
-
-              <div>
-                <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-950">
-                  <Wallet className="h-4 w-4" /> Бюджет
-                </div>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <ChoiceButton active={budget === "low"} onClick={() => setBudget("low")}>
-                    <div className="font-semibold">Низкий</div>
-                  </ChoiceButton>
-                  <ChoiceButton active={budget === "mid"} onClick={() => setBudget("mid")}>
-                    <div className="font-semibold">Средний</div>
-                  </ChoiceButton>
-                  <ChoiceButton active={budget === "high"} onClick={() => setBudget("high")}>
-                    <div className="font-semibold">Высокий</div>
-                  </ChoiceButton>
-                </div>
-              </div>
-
-              <div>
-                <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-950">
-                  <Gauge className="h-4 w-4" /> Предпочтительный формат
-                </div>
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  <ChoiceButton active={formatPreference === "ready"} onClick={() => setFormatPreference("ready")}>
-                    <div className="font-semibold">Готовый компьютер</div>
-                  </ChoiceButton>
-                  <ChoiceButton active={formatPreference === "build"} onClick={() => setFormatPreference("build")}>
-                    <div className="font-semibold leading-tight">Сборка своими руками</div>
-                  </ChoiceButton>
-                  <ChoiceButton active={formatPreference === "experiment"} onClick={() => setFormatPreference("experiment")}>
-                    <div className="font-semibold">Эксперименты и обучение</div>
-                  </ChoiceButton>
-                  <ChoiceButton active={formatPreference === "any"} onClick={() => setFormatPreference("any")}>
-                    <div className="font-semibold">Без разницы</div>
-                  </ChoiceButton>
-                </div>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <ChoiceButton active={alwaysOn} onClick={() => setAlwaysOn((v) => !v)}>
-                  <div className="flex items-center gap-2 font-semibold">
-                    <Leaf className="h-4 w-4" /> Должен работать постоянно
+                    <ChoiceButton active={sizePreference === "small"} onClick={() => setSizePreference("small")}>
+                      <div className="font-semibold">Просто компактный</div>
+                      <div className="mt-1 text-sm text-slate-900/70">маленький, но удобный</div>
+                    </ChoiceButton>
+                    <ChoiceButton active={sizePreference === "bigger"} onClick={() => setSizePreference("bigger")}>
+                      <div className="font-semibold">Можно чуть больше</div>
+                      <div className="mt-1 text-sm text-slate-900/70">ради мощности</div>
+                    </ChoiceButton>
                   </div>
-                  <div className={`mt-1 text-sm ${alwaysOn ? "text-slate-900/80" : "text-slate-900/70"}`}>
-                    например как сервер или устройство для дома
-                  </div>
-                </ChoiceButton>
-                <ChoiceButton active={portable} onClick={() => setPortable((v) => !v)}>
-                  <div className="flex items-center gap-2 font-semibold">
-                    <Sparkles className="h-4 w-4" /> Лёгкое перемещение
-                  </div>
-                  <div className={`mt-1 text-sm ${portable ? "text-slate-900/80" : "text-slate-900/70"}`}>
-                    важны размер и удобство
-                  </div>
-                </ChoiceButton>
-              </div>
-            </CardContent>
-          </Card>
+                </div>
 
-          <Card className={glassCard}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-950">
-                <BadgeCheck className="h-4 w-4" />
-                Шаг 3. Получите рекомендацию
-              </CardTitle>
-              <CardDescription className="text-slate-900/75">Сначала — короткий ответ, ниже — подробности и объяснение.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="rounded-[28px] border border-white/34 bg-[linear-gradient(135deg,rgba(255,255,255,0.34),rgba(255,255,255,0.16))] p-5 text-slate-950 shadow-[0_18px_40px_rgba(148,163,184,0.18)] backdrop-blur-2xl">
-                <div className="text-xs uppercase tracking-[0.18em] text-slate-700/75">Что подойдёт лучше всего</div>
-                <div className="mt-2 text-2xl font-bold">{results.top.title}</div>
-                <div className="mt-2 text-sm leading-6 text-slate-900/80">{results.top.short}</div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {results.top.bestFor.map((item) => (
-                    <span key={item} className="rounded-full border border-white/34 bg-white/18 px-3 py-1 text-xs text-slate-950 backdrop-blur-xl">
-                      {item}
-                    </span>
-                  ))}
+                <div>
+                  <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-950">
+                    <Wrench className="h-4 w-4" /> Возможность менять детали
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <ChoiceButton active={upgradeLevel === "low"} onClick={() => setUpgradeLevel("low")}>
+                      <div className="font-semibold">Не важна</div>
+                    </ChoiceButton>
+                    <ChoiceButton active={upgradeLevel === "medium"} onClick={() => setUpgradeLevel("medium")}>
+                      <div className="font-semibold">Желательно</div>
+                    </ChoiceButton>
+                    <ChoiceButton active={upgradeLevel === "high"} onClick={() => setUpgradeLevel("high")}>
+                      <div className="font-semibold">Очень важна</div>
+                    </ChoiceButton>
+                  </div>
                 </div>
-              </div>
 
-              <div className="grid gap-3 md:grid-cols-3">
-                <div className="rounded-[22px] border border-white/28 bg-white/14 p-4 backdrop-blur-xl">
-                  <div className="text-sm font-semibold text-slate-950">Лучший формат</div>
-                  <div className="mt-1 text-sm leading-6 text-slate-900/80">{results.top.title}</div>
+                <div>
+                  <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-950">
+                    <VolumeX className="h-4 w-4" /> Шум
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <ChoiceButton active={noiseLevel === "silent"} onClick={() => setNoiseLevel("silent")}>
+                      <div className="font-semibold">Максимально тихий</div>
+                    </ChoiceButton>
+                    <ChoiceButton active={noiseLevel === "balanced"} onClick={() => setNoiseLevel("balanced")}>
+                      <div className="font-semibold">Средне</div>
+                    </ChoiceButton>
+                    <ChoiceButton active={noiseLevel === "any"} onClick={() => setNoiseLevel("any")}>
+                      <div className="font-semibold">Не важно</div>
+                    </ChoiceButton>
+                  </div>
                 </div>
-                <div className="rounded-[22px] border border-white/28 bg-white/14 p-4 backdrop-blur-xl">
-                  <div className="text-sm font-semibold text-slate-950">Подходит, если вам нужно</div>
-                  <div className="mt-1 text-sm leading-6 text-slate-900/80">{results.top.bestFor.slice(0, 3).join(", ")}</div>
-                </div>
-                <div className="rounded-[22px] border border-white/28 bg-white/14 p-4 backdrop-blur-xl">
-                  <div className="text-sm font-semibold text-slate-950">Главное, что стоит учесть</div>
-                  <div className="mt-1 text-sm leading-6 text-slate-900/80">{results.top.limits[0]}</div>
-                </div>
-              </div>
 
-              <CollapsibleBlock title="Почему выбран именно этот формат" description="Короткое человеческое объяснение" defaultOpen>
-                <div className="space-y-2">
-                  {results.reasons.length > 0 ? (
-                    results.reasons.map((reason) => (
-                      <div key={reason} className="flex items-start gap-2 rounded-[18px] border border-white/24 bg-white/10 p-3 text-sm text-slate-900/85 backdrop-blur-xl">
-                        <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0" />
-                        <span>{reason}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="rounded-[18px] border border-white/24 bg-white/10 p-3 text-sm text-slate-900/85 backdrop-blur-xl">
-                      По выбранным параметрам лучше всего подходит универсальный и практичный вариант.
+                <div>
+                  <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-950">
+                    <Wallet className="h-4 w-4" /> Бюджет
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <ChoiceButton active={budget === "low"} onClick={() => setBudget("low")}>
+                      <div className="font-semibold">Низкий</div>
+                    </ChoiceButton>
+                    <ChoiceButton active={budget === "mid"} onClick={() => setBudget("mid")}>
+                      <div className="font-semibold">Средний</div>
+                    </ChoiceButton>
+                    <ChoiceButton active={budget === "high"} onClick={() => setBudget("high")}>
+                      <div className="font-semibold">Высокий</div>
+                    </ChoiceButton>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-950">
+                    <Gauge className="h-4 w-4" /> Предпочтительный формат
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-2">
+                    <ChoiceButton active={formatPreference === "ready"} onClick={() => setFormatPreference("ready")}>
+                      <div className="font-semibold">Готовый компьютер</div>
+                    </ChoiceButton>
+                    <ChoiceButton active={formatPreference === "build"} onClick={() => setFormatPreference("build")}>
+                      <div className="font-semibold leading-tight">Сборка своими руками</div>
+                    </ChoiceButton>
+                    <ChoiceButton active={formatPreference === "experiment"} onClick={() => setFormatPreference("experiment")}>
+                      <div className="font-semibold">Эксперименты и обучение</div>
+                    </ChoiceButton>
+                    <ChoiceButton active={formatPreference === "any"} onClick={() => setFormatPreference("any")}>
+                      <div className="font-semibold">Без разницы</div>
+                    </ChoiceButton>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <button
+                    onClick={() => setAlwaysOn((v) => !v)}
+                    className={`rounded-[24px] border p-4 text-left transition-all duration-300 backdrop-blur-xl ${alwaysOn ? "border-white/50 bg-white/24 text-slate-950 shadow-[0_10px_30px_rgba(255,255,255,0.18)]" : "border-white/30 bg-white/12 text-slate-900 hover:bg-white/18 hover:border-white/45"}`}
+                  >
+                    <div className="flex items-center gap-2 font-semibold">
+                      <Leaf className="h-4 w-4" /> Должен работать постоянно
                     </div>
-                  )}
+                    <div className={`mt-1 text-sm ${alwaysOn ? "text-slate-900/80" : "text-slate-900/70"}`}>
+                      например как сервер или устройство для дома
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setPortable((v) => !v)}
+                    className={`rounded-[24px] border p-4 text-left transition-all duration-300 backdrop-blur-xl ${portable ? "border-white/50 bg-white/24 text-slate-950 shadow-[0_10px_30px_rgba(255,255,255,0.18)]" : "border-white/30 bg-white/12 text-slate-900 hover:bg-white/18 hover:border-white/45"}`}
+                  >
+                    <div className="flex items-center gap-2 font-semibold">
+                      <Sparkles className="h-4 w-4" /> Лёгкое перемещение
+                    </div>
+                    <div className={`mt-1 text-sm ${portable ? "text-slate-900/80" : "text-slate-900/70"}`}>
+                      важны размер и удобство
+                    </div>
+                  </button>
                 </div>
-              </CollapsibleBlock>
+              </CardContent>
+            </Card>
 
-              <CollapsibleBlock title="Что можно искать дальше" description="Пример направления, а не одна конкретная модель" defaultOpen>
-                <div className="rounded-[18px] border border-white/24 bg-white/10 p-4 backdrop-blur-xl">
-                  <div className="font-semibold text-slate-950">{results.spec.title}</div>
-                  <ul className="mt-3 space-y-2 text-sm text-slate-900/80">
-                    {results.spec.items.map((item) => (
-                      <li key={item} className="flex items-start gap-2">
-                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-500/70" />
-                        <span>{item}</span>
-                      </li>
+            <CollapsibleBlock
+              title="О сайте и о том, как понимать результат"
+              description="Этот блок можно открыть, если хочется понять логику подбора глубже"
+              defaultOpen={showAbout}
+            >
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-[22px] border border-white/28 bg-white/14 p-4 backdrop-blur-xl">
+                  <div className="mb-2 text-sm font-semibold text-slate-950">О проекте и цели сайта</div>
+                  <p className="text-sm leading-6 text-slate-900/80">
+                    Этот сайт является практическим продуктом проекта о малогабаритных персональных компьютерах. Его цель — помочь пользователю подобрать подходящий тип компактного ПК с учётом реальных задач, уровня компактности, шума, бюджета и возможности апгрейда.
+                  </p>
+                </div>
+                <div className="rounded-[22px] border border-white/28 bg-white/14 p-4 backdrop-blur-xl">
+                  <div className="mb-2 text-sm font-semibold text-slate-950">Как понимать результат</div>
+                  <p className="text-sm leading-6 text-slate-900/80">
+                    Сайт не выбирает за пользователя одну «идеальную» модель, а подсказывает наиболее подходящее направление. Это помогает быстрее сузить выбор и понять, что именно стоит искать дальше.
+                  </p>
+                </div>
+              </div>
+            </CollapsibleBlock>
+          </div>
+
+          <div className="space-y-6">
+            <Card className={`${glassCard} sticky top-6`}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-slate-950">
+                  <BadgeCheck className="h-4 w-4" />
+                  Шаг 3. Получите рекомендацию
+                </CardTitle>
+                <CardDescription className="text-slate-900/75">Сначала — короткий ответ, ниже — подробности и объяснение.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="rounded-[28px] border border-white/34 bg-[linear-gradient(135deg,rgba(255,255,255,0.34),rgba(255,255,255,0.16))] p-5 text-slate-950 backdrop-blur-2xl shadow-[0_18px_40px_rgba(148,163,184,0.18)]">
+                  <div className="text-xs uppercase tracking-[0.18em] text-slate-700/75">Что подойдёт лучше всего</div>
+                  <div className="mt-2 text-2xl font-bold">{results.top.title}</div>
+                  <div className="mt-2 text-sm leading-6 text-slate-900/80">{results.top.short}</div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {results.top.bestFor.map((item) => (
+                      <span key={item} className="rounded-full border border-white/34 bg-white/18 px-3 py-1 text-xs text-slate-950 backdrop-blur-xl">
+                        {item}
+                      </span>
                     ))}
-                  </ul>
+                  </div>
                 </div>
-              </CollapsibleBlock>
 
-              <CollapsibleBlock title="Сильные стороны этого варианта" description="Так проще понять, в чём он выигрывает" defaultOpen={false}>
-                <div className="space-y-3">
-                  {[
-                    ["Компактность", results.top.metrics.compactness],
-                    ["Мощность", results.top.metrics.performance],
-                    ["Тишина", results.top.metrics.silence],
-                    ["Апгрейд", results.top.metrics.upgrade],
-                    ["Экономичность", results.top.metrics.economy],
-                  ].map(([label, value]) => (
-                    <div key={label as string}>
-                      <div className="mb-1 flex items-center justify-between text-sm text-slate-950">
-                        <span>{label as string}</span>
-                        <span className="font-medium">{value as number}/10</span>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="rounded-[22px] border border-white/28 bg-white/14 p-4 backdrop-blur-xl">
+                    <div className="text-sm font-semibold text-slate-950">Лучший формат</div>
+                    <div className="mt-1 text-sm leading-6 text-slate-900/80">{results.top.title}</div>
+                  </div>
+                  <div className="rounded-[22px] border border-white/28 bg-white/14 p-4 backdrop-blur-xl">
+                    <div className="text-sm font-semibold text-slate-950">Подходит, если вам нужно</div>
+                    <div className="mt-1 text-sm leading-6 text-slate-900/80">{results.top.bestFor.slice(0, 3).join(", ")}</div>
+                  </div>
+                  <div className="rounded-[22px] border border-white/28 bg-white/14 p-4 backdrop-blur-xl">
+                    <div className="text-sm font-semibold text-slate-950">Главное, что стоит учесть</div>
+                    <div className="mt-1 text-sm leading-6 text-slate-900/80">{results.top.limits[0]}</div>
+                  </div>
+                </div>
+
+                <CollapsibleBlock title="Почему выбран именно этот формат" description="Короткое человеческое объяснение" defaultOpen>
+                  <div className="space-y-2">
+                    {results.reasons.length > 0 ? (
+                      results.reasons.map((reason) => (
+                        <div key={reason} className="flex items-start gap-2 rounded-[18px] border border-white/24 bg-white/10 p-3 text-sm text-slate-900/85 backdrop-blur-xl">
+                          <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0" />
+                          <span>{reason}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-[18px] border border-white/24 bg-white/10 p-3 text-sm text-slate-900/85 backdrop-blur-xl">
+                        По выбранным параметрам лучше всего подходит универсальный и практичный вариант.
                       </div>
-                      <div className="h-2 rounded-full bg-white/28">
-                        <div className="h-2 rounded-full bg-[linear-gradient(90deg,rgba(15,23,42,0.82),rgba(59,130,246,0.7))] transition-all" style={{ width: metricBar(value as number) }} />
+                    )}
+                  </div>
+                </CollapsibleBlock>
+
+                <CollapsibleBlock title="Что можно искать дальше" description="Пример направления, а не одна конкретная модель" defaultOpen>
+                  <div className="rounded-[18px] border border-white/24 bg-white/10 p-4 backdrop-blur-xl">
+                    <div className="font-semibold text-slate-950">{results.spec.title}</div>
+                    <ul className="mt-3 space-y-2 text-sm text-slate-900/80">
+                      {results.spec.items.map((item) => (
+                        <li key={item} className="flex items-start gap-2">
+                          <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-500/70" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </CollapsibleBlock>
+
+                <CollapsibleBlock title="Сильные стороны этого варианта" description="Так проще понять, в чём он выигрывает" defaultOpen={false}>
+                  <div className="space-y-3">
+                    {[
+                      ["Компактность", results.top.metrics.compactness],
+                      ["Мощность", results.top.metrics.performance],
+                      ["Тишина", results.top.metrics.silence],
+                      ["Апгрейд", results.top.metrics.upgrade],
+                      ["Экономичность", results.top.metrics.economy],
+                    ].map(([label, value]) => (
+                      <div key={label as string}>
+                        <div className="mb-1 flex items-center justify-between text-sm text-slate-950">
+                          <span>{label as string}</span>
+                          <span className="font-medium">{value as number}/10</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-white/28">
+                          <div className="h-2 rounded-full bg-[linear-gradient(90deg,rgba(15,23,42,0.82),rgba(59,130,246,0.7))] transition-all" style={{ width: metricBar(value as number) }} />
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </CollapsibleBlock>
+                    ))}
+                  </div>
+                </CollapsibleBlock>
 
-              <CollapsibleBlock title="Почему другие варианты ниже" description="Сайт показывает не только лучший вариант, но и почему остальные не стали первыми" defaultOpen={false}>
-                <div className="space-y-3">
-                  {results.alternatives.map((item) => (
-                    <div key={item.title} className="rounded-[18px] border border-white/24 bg-white/10 p-3 text-sm backdrop-blur-xl">
-                      <div className="font-semibold text-slate-950">{item.title}</div>
-                      <div className="mt-1 leading-6 text-slate-900/80">{item.text}</div>
-                    </div>
-                  ))}
-                </div>
-              </CollapsibleBlock>
+                <CollapsibleBlock title="Почему другие варианты ниже" description="Сайт показывает не только лучший вариант, но и почему остальные не стали первыми" defaultOpen={false}>
+                  <div className="space-y-3">
+                    {results.alternatives.map((item) => (
+                      <div key={item.title} className="rounded-[18px] border border-white/24 bg-white/10 p-3 text-sm backdrop-blur-xl">
+                        <div className="font-semibold text-slate-950">{item.title}</div>
+                        <div className="mt-1 leading-6 text-slate-900/80">{item.text}</div>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleBlock>
 
-              <Button
-                className="w-full rounded-[22px] border border-white/35 bg-white/22 text-slate-950 shadow-[0_12px_30px_rgba(255,255,255,0.16)] backdrop-blur-xl hover:bg-white/28"
-                onClick={resetAll}
-              >
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Сбросить выбор
-              </Button>
-            </CardContent>
-          </Card>
-
-          <CollapsibleBlock
-            title="О сайте и о том, как понимать результат"
-            description="Этот блок можно открыть, если хочется понять логику подбора глубже"
-            defaultOpen={showAbout}
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-[22px] border border-white/28 bg-white/14 p-4 backdrop-blur-xl">
-                <div className="mb-2 text-sm font-semibold text-slate-950">О проекте и цели сайта</div>
-                <p className="text-sm leading-6 text-slate-900/80">
-                  Этот сайт является практическим продуктом проекта о малогабаритных персональных компьютерах. Его цель — помочь пользователю подобрать подходящий тип компактного ПК с учётом реальных задач, уровня компактности, шума, бюджета и возможности апгрейда.
-                </p>
-              </div>
-              <div className="rounded-[22px] border border-white/28 bg-white/14 p-4 backdrop-blur-xl">
-                <div className="mb-2 text-sm font-semibold text-slate-950">Как понимать результат</div>
-                <p className="text-sm leading-6 text-slate-900/80">
-                  Сайт не выбирает за пользователя одну «идеальную» модель, а подсказывает наиболее подходящее направление. Это помогает быстрее сузить выбор и понять, что именно стоит искать дальше.
-                </p>
-              </div>
-            </div>
-          </CollapsibleBlock>
+                <Button
+                  className="w-full rounded-[22px] border border-white/35 bg-white/22 text-slate-950 shadow-[0_12px_30px_rgba(255,255,255,0.16)] backdrop-blur-xl hover:bg-white/28"
+                  onClick={resetAll}
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Сбросить выбор
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
